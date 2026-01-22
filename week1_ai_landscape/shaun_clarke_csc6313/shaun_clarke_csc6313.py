@@ -93,9 +93,10 @@ def get_user_input() -> str:
             
             return get_input
             
-            
+        # Gracefully handling keyboard interrupt
         except KeyboardInterrupt:
-            print(f"Really dude, keyboard intterupt? Ok bye.\n")
+            print(f"\nReally dude, keyboard intterupt? Ok bye.\n")
+            exit()
         except ValueError:
             print(f"You missunderstood the mission objective, please try again ...\n")
 
@@ -112,17 +113,3 @@ def main():
    
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
