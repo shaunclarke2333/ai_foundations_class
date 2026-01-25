@@ -19,9 +19,13 @@ from sklearn.feature_extraction.text import CountVectorizer
 # Importing MultinomialNB, this is the Naive Bayes algortihm that calculates probabilities. This is where the magic happens
 from sklearn.naive_bayes import MultinomialNB
 from typing import List
+import numpy as np
+from numpy.typing import NDArray
+from scipy.sparse import csr_matrix
 
 
-def statistical_classifier(train_messages: List, train_labels: List, test_message: List):
+
+def statistical_classifier(train_messages: List[str], train_labels: List[str], test_messages: List[str]) -> NDArray[np.str_]:
 
     # initializing a word counter object that will convert text to numbers
     # The CountVectorizer from the scikit-learn library.
@@ -38,11 +42,16 @@ def statistical_classifier(train_messages: List, train_labels: List, test_messag
         # So the 0 is because free is not in the document "buy now"
     vectorizer: CountVectorizer = CountVectorizer()
 
-    # Using .fit_transform to to build a list of all unique words then converts each message into a vector of word counts.
-    # This is basically the training set
-    X_train = vectorizer.fit_transform(train_messages)
+    # Using .fit_transform to to build a vocabulary of all unique words then converts each message into a vector of word counts.
+    # As usual i was curious how fit_transform accomplish this, so i did some digging:
+        # So fit and transform are separate steps that fit_transform combines into one process.
+        # the "fit" portion is what analyzes the training set and builds a unique vocabulary from it.
+            # I think of it as its learning the needed parameters to create the text vectorizer lookup table.
+        # The "transform" portion uses the learned parameters/vocabulary/lookup table to transform each message into a vector
+    # This is basically where the training set is prepped for the model using fit_transform.
+    X_train: csr_matrix = vectorizer.fit_transform(train_messages)
 
-    # Insantiating a Naive Bayes classifier object an empty model
+    # Initializing a Naive Bayes classifier object an empty model
     # This is another important piece because it implements the Multinomial Naive Bayes algo that's typically used in text classification.
     # It is good for text classification because it does really well at handling discrete features/inputs like word counts.
     # Curious why Multinomial Naive Bayes, i did some digging.
@@ -53,32 +62,35 @@ def statistical_classifier(train_messages: List, train_labels: List, test_messag
         # So during training the model looks at the frequency of a word appearing in messages from different categories i.e.(spam or not spam) then calculates the probability for each word.
             # So if we have "buy now" showing up a lot in messages classified as spam, this will used to help predict whether a new message is spam or not.
         # During prediction it uses those probabilities to calculate the probability of a message being spam or not.
-            # 
-
     model: MultinomialNB = MultinomialNB()
 
     # This is where the actual learning happens
-    # Training the model with teh labels and the vectorized data
+    # Training the model with teh labels and the vectorized data so it can learn the underlying patterns
+        # It does this by adjusting its parameters basaed on the input data X_train and the labels train_labels
+        # So in theory, the more data you feed it, the better its pattern recognition becomes
+        # Which increases is ability to guess the right outcome.
     model.fit(X_train, train_labels)
 
     # Vectorizing the test set, by converting the test message to the same vector format
-    # using the same list of unique words as above
-    # As we stated earlier, we cant do math on words, vectorize it to the specs we vectorized the training set with
-    X_test = vectorizer.transform(test_message)
+    # We only need to do transform here because we need to vectorize the test data
+        #using the same list of unique words/covabualry that was generated in the fit_trasform stage above.
+        # There is not need to do a fit, because that will now create a new vocabulary
+        # This potentially breaks the model and leads to overfitting, because you ar enow testing on the same vectorized data set.
+    X_test: csr_matrix = vectorizer.transform(test_messages)
 
     # Using what the model learned from the training it did earlier "model.fit"
     # to predict if the test message is spam or not
     # I wanted all predictions and not just the first so i removed [0] that was selecting only the first element.
-    prediction = model.predict(X_test)
+    prediction: NDArray[np.str_] = model.predict(X_test)
 
-    # Printing out test messages ane their predictions
-    for i in range(len(test_message)):
-        print(f"{test_message[i]}: {prediction[i]}")
+    return prediction
+
+    
 
 
 
-def main():
-    train_messages: List = [
+def main() -> None:
+    train_messages: List[str] = [
         "Congratulations! You've won a $1,000 Amazon gift card. Click here to claim your prize now.",
         "URGENT: Your account has been suspended. Verify your information immediately to restore access.",
         "Limited time offer!!! Get cheap meds without prescription. Order today.",
@@ -111,7 +123,7 @@ def main():
         "Lunch was great today — we should do that again soon."
     ]
 
-    train_labels: List = [
+    train_labels: List[str] = [
         "spam",
         "spam",
         "spam",
@@ -144,7 +156,7 @@ def main():
         "not spam"
     ]
 
-    test_message: List[tuple[str,int]] = [
+    test_messages: List[str] = [
         "IRS warning: Unpaid taxes detected. Immediate payment required to avoid arrest.",
         "You've been pre-approved for a credit increase. Click to accept.",
         "Exclusive deal just for you! 90% off luxury watches today only.",
@@ -157,8 +169,39 @@ def main():
         "Can you send me the meeting notes from yesterday?"
     ]
 
-    statistical_classifier(train_messages, train_labels, test_message)
+    prediction = statistical_classifier(train_messages, train_labels, test_messages)
+
+    # Printing out test messages ane their predictions
+    for i in range(len(test_messages)):
+        print(f"{test_messages[i]}: {prediction[i]}\n")
 
 
 if __name__ == "__main__":
     main()
+
+
+"""
+So let's compare my week 1 symbolic Ai spam classifier to this weeks statistical spam classifier.
+For my week one classifier i used a symbolic Ai approach with hardcoded rules. Rules like if any of these spam words were detected,
+its spam, if the message was above aor below a certain length, its spam. But my statistical spam classifier for this week takes a different approach.
+Instead of hard coded rules, used MultinomialNB and Countvectorizer to build and train a model to predict whether a message is spam or not.
+Instead of hardcoded rules, i used supervised learning; gave it some trainin data with the lables spam, not spam. This allowed the model to learn the underlying pattern.
+This pattern allows it to infer if a message was spam or not.
+
+When it comes to scalability the statistical classifier wins by default for multiple reasons.
+If you have a million messages, you would have to manually code the logic to catch spam.
+You would have to constantly manually update the rules as the identifiers change.
+With the statistical model, if you train it on a large enough dataset, it will be able to recognize spam no matter how the inut scales.
+Updating it is as simple as training it on new data.
+
+The statistical model is easier to maintain because you train it on new data if new patterns emerge that it's not picking up.
+The symbolic classifier qould require a lot of manual effort that is never ending.
+
+The statistical model would be more accurate with less false positives, becasue it has the ability to handle spam that it has never seen before.
+While the symbolic classifier would not know what to do with spam messages that it has no rules for. But when the symbolic model does classify an email as spam, you know why
+because the rules are right there. The statistical model on the other hand is like a black box, it decided based on probability.
+
+To wrap this up, the statistical model is definitley better, easier to maintain, more efficient and scales easily too. I am sure there are situatons where the symbolic model would wrok great,
+Mayeb in deterministic envronmemts that don't change unless done manually.
+
+"""
