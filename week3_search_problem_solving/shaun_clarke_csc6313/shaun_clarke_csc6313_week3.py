@@ -27,15 +27,22 @@ def get_neighbors(node, grid):
     return neighbors
 
 ### Heuristic Function: Implement the Manhattan Distance formula to guide your A* search. ###
-
-
-def manhattan_distance(a, b):
+def manhattan_distance(a: set, b: set):
     """
     TASK: Implement Manhattan Distance h(n)
     Formula: |x1 - x2| + |y1 - y2|
     """
-    # TODO: Your code here
-    return 0
+    # Getting coordinates for point a
+    x1: int = a[0]
+    y1: int = a[1]
+    # Getting coordinates for point b
+    x2: int = b[0]
+    y2: int = b[1]
+
+    # Calculating the manhattan distance between the cordinates
+    distance: int = abs(x1 - x2) + abs(y1 - y2)
+
+    return distance
 
 
 ### BFS Implementation: Use a deque (Double-Ended Queue) to implement a First-In-First-Out (FIFO) frontier. ###
@@ -46,9 +53,9 @@ def breadth_first_search(grid, start, goal):
     - Return the total count of nodes visited.
     """
     # Using fifo queue to store nodes that are waiting to be visited
-    queue: deque = deque()
+    frontier: deque = deque()
     #Adding start position to queue
-    queue.append(start)
+    frontier.append(start)
     # This will be used to track visited nodes
     visited: set = set()
     # Adding starting node to visited
@@ -57,9 +64,9 @@ def breadth_first_search(grid, start, goal):
     nodes_visited: int = 0
 
     # While the queue is not empty
-    while queue :
+    while frontier :
         # Getting the next node in the queue by popping from left
-        current_node = queue.popleft() 
+        current_node = frontier.popleft() 
         # Incrementing visited node counter 
         nodes_visited += 1 # Mental note for me: node visited count should increment after it is removed from the queue.
         # Checking if we reached the goal
@@ -76,14 +83,12 @@ def breadth_first_search(grid, start, goal):
                 # Lets add it to visited to mark it as visited
                 visited.add(neighbor_node) # mental note for me, a node is marked as visited when it gets added tot he queue
                 # Lets also add it to the queue
-                queue.append(neighbor_node)
+                frontier.append(neighbor_node)
         
     
     return nodes_visited
 
 ### *A Implementation:** Use heapq (Priority Queue) to always expand the node with the lowest total estimated cost $f(n) = g(n) + h(n)$. ###
-
-
 def a_star_search(grid, start, goal):
     """
     TASK: Implement A* Search.
@@ -91,7 +96,64 @@ def a_star_search(grid, start, goal):
     - Use the tie-breaker: priority = (g + h) + (h * 0.001)
     - Return the total count of nodes visited.
     """
-    nodes_visited = 0
+    frontier: List = []
+    counter: int = 0
+
+    visited: set = set()
+
+    # Dictionary to track g(n) which is the cost from start to the node
+    g_cost: Dict = {}
+
+    # Setting the g score for the start node
+    g_cost[start] = 0
+    # Calculating the heuristic(h) value for the start node using manhattan distance
+    h_start: int = manhattan_distance(start, goal) 
+    # Calculating f (f = g + h) wich is the total estimated cost from start to finish
+    f_start: int = g_cost[start] + h_start
+    # Calculating the node that takes priority using the tie-breaker
+    priority = f_start + (h_start * 0.001)
+    # Adding the starting node and details to frontier using heappush
+    heapq.heappush(frontier, (priority, counter, start))
+    # Incrementing counter
+    counter += 1
+    nodes_visited: int = 0
+
+    # Starting the search loop party
+    while frontier: # While the list is not empty
+        # Getting the node with the lowest priority
+        current_priority, _, current = heapq.heappop(frontier)
+        # If we didnt hit the goal node but we already visited this node, skip it by continuing
+        if current in visited:
+            continue
+        # We checked the current node and it wasnt the goal node so adding it to the visited set
+        visited.add(current)
+        # Incrementing node visited because it was popped
+        nodes_visited += 1
+         # Checking if we hit the goal node
+        if current == goal:
+            return nodes_visited
+
+        # We had no luck with the node we check so now we need to find the neibors of that node
+        neighbors: List = get_neighbors(current, grid)
+        # looping through neighbors to calculate the A* search params
+        for neighbor in neighbors:
+            # Calculating a somewhat tentstive g_cost
+            new_g_cost = g_cost[current] + 1
+            # If we havent visited this node yet or we have seen it before but this path is cheaper(cheaper g_cost)
+            if neighbor not in g_cost or new_g_cost < g_cost[neighbor]:
+                # Updating the g_cost for this neighbor because one of the conditions were satisfied
+                g_cost[neighbor] = new_g_cost
+                # Calling manhattan distance func to calculate the heuristic(roughly how far is this present node from the goal) for this neighbor
+                h = manhattan_distance(neighbor, goal)
+                # Calculating the total cost from node to goal for this neighbot
+                f: int = new_g_cost + h
+                # Calculating the node that takes priority using the tie-breaker
+                priority = f + (h * 0.001)
+                # addding current node and othe rdetails to to frontier using heappush
+                heapq.heappush(frontier, (priority, counter,neighbor))
+                # Incrementing counter
+                counter += 1
+
     # TODO: Your code here
     return nodes_visited
 
@@ -122,4 +184,8 @@ for r in [1, 3, 5, 7]:
     m4[r][9] = 1
 
 start = (0, 0)
+
 print(f"1. WINDING MAZE - BFS: {breadth_first_search(m1, start, (9,9))} | A*: {a_star_search(m1, start, (9,9))}")
+print(f"2. CHECKERBOARD - BFS: {breadth_first_search(m2, start, (9,9))} | A*: {a_star_search(m2, start, (9,9))}")
+print(f"3. THE SPIRAL   - BFS: {breadth_first_search(m3, start, (6,6))} | A*: {a_star_search(m3, start, (6,6))}")
+print(f"4. CORRIDORS    - BFS: {breadth_first_search(m4, start, (9,0))} | A*: {a_star_search(m4, start, (9,0))}")
