@@ -1,0 +1,17 @@
+Python exit commands: quit(), exit(), sys.exit() and os._exit()
+Last Updated : 12 Jul, 2025
+The functions quit(), exit(), sys.exit(), and os._exit() have almost the same functionality as they raise the SystemExit exception by which the Python interpreter exits and no stack traceback is printed. We can catch the exception to intercept early exits and perform cleanup activities; if uncaught, the interpreter exits as usual. In this article, we will see how to exit from the Python program.
+
+What are Python Exit Commands?
+Exit commands in Python refer to methods or statements used to terminate the execution of a Python program or exit the Python interpreter. The commonly used exit commands include `sys.exit()`, `exit()`, and `quit()`. These commands halt the program or interpreter, allowing the user to gracefully terminate the execution. there are some commands in Python for exit here we are discussing these commands in brief the commands are the following
+
+quit() in Python
+exit() in Python
+sys.exit() using Python
+os._exit() in Python
+Note: In interactive mode (running Python in the terminal), you can typically exit by typing exit() or quit() without parentheses.
+
+Python Exit Command using quit() Function
+The quit() function works as an exit command in Python if only if the site module is imported so it should not be used in production code. Production code means the code is being used by the intended audience in a real-world situation. This function should only be used in the interpreter. It raises the SystemExit exception behind the scenes. If you print it, it will give a message and end a program in Python.
+
+Example: In the provided code, when i is equal to 5, it prints "quit" and attempts to exit the Python interpreter using the quit() function. If i is not equal to 5, it prints the value of i.

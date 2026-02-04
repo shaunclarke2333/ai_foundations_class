@@ -169,7 +169,7 @@ def main() -> None:
         "Can you send me the meeting notes from yesterday?"
     ]
 
-    prediction = statistical_classifier(train_messages, train_labels, test_messages)
+    prediction: NDArray[np.str_] = statistical_classifier(train_messages, train_labels, test_messages)
 
     # Printing out test messages ane their predictions
     for i in range(len(test_messages)):
