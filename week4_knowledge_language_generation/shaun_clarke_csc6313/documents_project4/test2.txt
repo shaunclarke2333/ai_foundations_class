@@ -1,0 +1,13 @@
+Successful responses
+200 OK
+The request succeeded. The result and meaning of "success" depends on the HTTP method:
+
+GET: The resource has been fetched and transmitted in the message body.
+HEAD: Representation headers are included in the response without any message body.
+PUT or POST: The resource describing the result of the action is transmitted in the message body.
+TRACE: The message body contains the request as received by the server.
+201 Created
+The request succeeded, and a new resource was created as a result. This is typically the response sent after POST requests, or some PUT requests.
+
+202 Accepted
+The request has been received but not yet acted upon. It is noncommittal, since there is no way in HTTP to later send an asynchronous response indicating the outcome of the request. It is intended for cases where another process or server handles the request, or for batch processing.
