@@ -12,12 +12,13 @@ This mirrors the industry standard for reducing hallucinations in AI models by "
 """
 
 import os
-from typing import List, Dict
+from typing import List, Dict, Optional
 from pathlib import Path
 import chromadb
 from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
 import requests
+import pymupdf4llm
 
 
 class DocumentLoader:
@@ -35,9 +36,13 @@ class DocumentLoader:
         self.chunk_overlap = chunk_overlap
 
     # Helper method to create a dictionary with the extracted file content
-    def collect_file_content(self, source: str, content: str) -> Dict[str, str]:
+    def collect_file_content(self, source: str, content: str, page: Optional[str] = None) -> Dict[str, str]:
         # Creating a dictionary that holds the file name and content as keys and values
-        file_data: Dict = {"content": content, "source": source}
+        file_data: Dict = {
+            "content": content,
+            "source": source,
+            "page": page
+        }
 
         return file_data
 
@@ -54,7 +59,7 @@ class DocumentLoader:
         # print(files)
         # Extracting content from the files in the directory
         for file in files:
-            print(file)
+            # print(file)
             # Creating absolute filepath
             file_path: str = os.path.join(directory, file)
             # Getting file extension by using split, also using a throw away variable for the filename becasue we only need the extension
@@ -70,7 +75,7 @@ class DocumentLoader:
                 continue
             # If the file extension is not in the approved list skip it
             if extension not in doc_types:
-                print(f"This extension cannot be parsed at the moment: {extension}")
+                # print(f"This extension cannot be parsed at the moment: {extension}")
                 continue
             
             # If this is a .txt file parse it as a text file
@@ -84,8 +89,17 @@ class DocumentLoader:
                         text_data_dict = self.collect_file_content(source=file, content=text_file_content)
                         # Adding the text file dictionary to the documents list
                         documents.append(text_data_dict)
-                        print(documents)
-
-                except:
+                except FileNotFoundError:
+                    raise(f"{file_path} could not be found")
+                except Exception as e:
+                    raise(f"Seems like we hvave a problem {e}")
+            # If this is a PDF file parse it as a PDF file
+            if extension == ".pdf":
+                try:
                     pass
+                except Exception as e:
+                    pass
+
+                
+        print(documents)
 
