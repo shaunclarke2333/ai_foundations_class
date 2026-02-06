@@ -91,7 +91,7 @@ class DocumentLoader:
                 page_content: str = page_dict["text"] # Extracting the pdf page content
                 metadata: str = page_dict["metadata"] # Getting metadata for the specific page so we can get the page number later
                 page_num: int = metadata["page"] # Extracting number for the specific page
-                filename: str = os.path.basename(metadata["file_path"]) # Stripping path to get only filename
+                # filename: str = os.path.basename(metadata["file_path"]) # Stripping path to get only filename
 
                 # creating a dictionary with the needed page details
                 pdf_data_dict = collect_content_func(file_path, page_content, page_num)
