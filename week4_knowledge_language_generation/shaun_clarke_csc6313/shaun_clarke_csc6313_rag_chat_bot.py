@@ -101,6 +101,48 @@ class DocumentLoader:
             raise(f"{file_path} could not be found")
         except Exception as e:
             raise(f"Seems like we have a problem {e}")
+        
+    # This method returns the content from a CSV
+    def get_csv_content(self, file_path: str, documents: List, collect_content_func: Callable[[str, str], Dict]) -> None:
+        """
+        This method gets the contents of a csv file along with the row num and file name
+        
+        :param self: Description
+        :param file_path: The location of the file
+        :type file_path: str
+        :param documents: The list that holds dictionaries with all the content extracted from files
+        :type documents: List
+        :param collect_content_func: the collect_file_content function that takes the filename and file content as params
+        :type collect_content_func: Callable[[str, str], Dict]
+        """
+        try:
+            # Reading in CSV data as a dataframe
+            df = pd.read_csv(file_path)
+            # Looping through the dataframe getting the index and row data
+            # the index is the row number
+            # # the row is a pandas series that has the column value parirs for that row 
+            for index, row in df.iterrows():
+                # Empty list to hold the formatted column: value strings the specified row
+                lines: list =[]
+                # replacing all missing NaN values in the specifed row with Unknown
+                row = row.fillna('Unknown')
+                # looping through each column value pair in the specified row
+                # column is the column name 
+                # value is going to be the value for that column in the specified row
+                for column, value in row.items():
+                    # adding column and value as key: value pairs so the row data makes sense 
+                    lines.append(f"{column}: {value}")
+                # Joining all the column: value lines as one multi line string
+                content = "\n".join(lines)
+
+                # Creating a dictionary with the specified row's data
+                csv_data_dict = collect_content_func(file_path, content, None, index)
+                # Adding the processed row to the documents list
+                documents.append(csv_data_dict)
+        except FileNotFoundError:
+            raise(f"{file_path} could not be found")
+        except Exception as e:
+            raise(f"Seems like we have a problem {e}")
 
     # This method reads all files from a specified directory
     def load_documents(self, directory: str) -> List[Dict[str, str]]:
@@ -164,6 +206,11 @@ class DocumentLoader:
                 markdown_data_dict = self.collect_file_content(source=file_path, content=markdown_file_content)
                 # Adding markdown file content to list
                 documents.append(markdown_data_dict)
+            
+            # If this is a CSV file parse it as a .CSV
+            if extension == ".csv":
+                # Getting content, row number and filename from the csv
+                self.get_csv_content(file_path, documents, self.collect_file_content)
                 
         print(documents)
 
