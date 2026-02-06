@@ -9,3 +9,4 @@ from shaun_clarke_csc6313_rag_chat_bot import DocumentLoader
 documents = DocumentLoader()
 documents.load_documents("./documents_project4")
 
+

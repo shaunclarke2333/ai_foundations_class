@@ -12,12 +12,13 @@ This mirrors the industry standard for reducing hallucinations in AI models by "
 """
 
 import os
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Callable
 from pathlib import Path
 import chromadb
 from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
 import requests
+import pandas as pd
 import pymupdf4llm
 
 
@@ -36,21 +37,84 @@ class DocumentLoader:
         self.chunk_overlap = chunk_overlap
 
     # Helper method to create a dictionary with the extracted file content
-    def collect_file_content(self, source: str, content: str, page: Optional[str] = None) -> Dict[str, str]:
+    def collect_file_content(self, source: str, content: str, page: Optional[str] = None, row: Optional[str] = None) -> Dict[str, str]:
         # Creating a dictionary that holds the file name and content as keys and values
         file_data: Dict = {
             "content": content,
             "source": source,
-            "page": page
+            "page": page,
+            "row": row
         }
-
         return file_data
+    
+    # This method returns content from a text file
+    def get_text_content(self, file_path: str) -> str:
+        """
+        Docstring for get_text_content
+        
+        :param self: Description
+        :param file_path: Description
+        :type file_path: str
+        :return: Description
+        :rtype: str
+        """
+        try:
+            # Opening the text file for reading
+            with open(file_path, "r", encoding="utf-8") as text_file:
+                # Returning the contents of the text file
+                text_file_content = text_file.read()
+                # Returning file content
+                return text_file_content
+        except FileNotFoundError:
+            raise(f"{file_path} could not be found")
+        except Exception as e:
+            raise(f"Seems like we hvave a problem {e}")
+    
+    # This method returns content from a pdf file 
+    def get_pdf_content(self, file_path: str, documents: List, collect_content_func: Callable[[str, str], Dict]) -> None:
+        """
+        This method gets the contents of a pdf file along with the page num and file name
+        
+        :param self: Description
+        :param file_path: The location of the file
+        :type file_path: str
+        :param documents: The list that holds dictionaries with all the content extracted from files
+        :type documents: List
+        :param collect_content_func: the collect_file_content function that takes the filename and file content as params
+        :type collect_content_func: Callable[[str, str], Dict]
+        """
+        try:
+            # Getting PDF metadata that includes content, page number and file path. page_chunks=True makes the metadata available
+            pages: List[Dict[str, str]] = pymupdf4llm.to_markdown(file_path, page_chunks=True)
+            #Looping through the list fo dictionaries to extract the needed info from the PDF metadata
+            for page_dict in pages:
+                page_content: str = page_dict["text"] # Extracting the pdf page content
+                metadata: str = page_dict["metadata"] # Getting metadata for the specific page so we can get the page number later
+                page_num: int = metadata["page"] # Extracting number for the specific page
+                filename: str = os.path.basename(metadata["file_path"]) # Stripping path to get only filename
+
+                # creating a dictionary with the needed page details
+                pdf_data_dict = collect_content_func(file_path, page_content, page_num)
+                # adding page data  to documents list
+                documents.append(pdf_data_dict)
+        except FileNotFoundError:
+            raise(f"{file_path} could not be found")
+        except Exception as e:
+            raise(f"Seems like we have a problem {e}")
 
     # This method reads all files from a specified directory
     def load_documents(self, directory: str) -> List[Dict[str, str]]:
-
+        """
+        Docstring for load_documents
+        
+        :param self: Description
+        :param directory: Description
+        :type directory: str
+        :return: Description
+        :rtype: List[Dict[str, str]]
+        """
         # Document types that cn abe loaded
-        doc_types: List = [".txt", ".pdf", ".md", ".doc"]
+        doc_types: List = [".txt", ".pdf", ".md", ".doc", ".csv"]
 
         # This list will be used to hold the dictionaries that have content and sourc keys
         documents: List = []
@@ -80,26 +144,26 @@ class DocumentLoader:
             
             # If this is a .txt file parse it as a text file
             if extension == ".txt":
-                try:
-                    # Opening the text file for reading
-                    with open(file_path, "r", encoding="utf-8") as text_file:
-                        # Returning the contents of the text file
-                        text_file_content = text_file.read()
-                        # Using a heler function to create a dictionary with the file name and content before adding it to the documents list
-                        text_data_dict = self.collect_file_content(source=file, content=text_file_content)
-                        # Adding the text file dictionary to the documents list
-                        documents.append(text_data_dict)
-                except FileNotFoundError:
-                    raise(f"{file_path} could not be found")
-                except Exception as e:
-                    raise(f"Seems like we hvave a problem {e}")
+               # Getting content from text file
+               text_file_content: str = self.get_text_content(file_path)
+               # Using a heler function to create a dictionary with the file name and content before adding it to the documents list
+               text_data_dict = self.collect_file_content(source=file_path, content=text_file_content)
+               # Adding text file content to list
+               documents.append(text_data_dict)
+
             # If this is a PDF file parse it as a PDF file
             if extension == ".pdf":
-                try:
-                    pass
-                except Exception as e:
-                    pass
+                # Getting content and metadata from pdf file
+                self.get_pdf_content(file_path, documents, self.collect_file_content)
 
+            # If this is a markdown file .md parse it as such
+            if extension == ".md":
+                # Getting content from text file using get_text_content function because it works for .md files as well
+                markdown_file_content: str = self.get_text_content(file_path)
+                # Using a heler function to create a dictionary with the file name and content before adding it to the documents list
+                markdown_data_dict = self.collect_file_content(source=file_path, content=markdown_file_content)
+                # Adding markdown file content to list
+                documents.append(markdown_data_dict)
                 
         print(documents)
 
