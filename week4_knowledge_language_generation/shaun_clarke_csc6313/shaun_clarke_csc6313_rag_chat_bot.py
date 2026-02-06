@@ -156,7 +156,7 @@ class DocumentLoader:
         :rtype: List[Dict[str, str]]
         """
         # Document types that cn abe loaded
-        doc_types: List = [".txt", ".pdf", ".md", ".doc", ".csv"]
+        doc_types: List = [".txt", ".pdf", ".md", ".csv"]
 
         # This list will be used to hold the dictionaries that have content and sourc keys
         documents: List = []
