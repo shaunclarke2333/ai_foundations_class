@@ -19,6 +19,8 @@ from sentence_transformers import SentenceTransformer
 import requests
 import pandas as pd
 import pymupdf4llm
+import numpy as np
+from numpy import typing as npt
 
 # This class loads documents to be chunked
 class DocumentLoader:
