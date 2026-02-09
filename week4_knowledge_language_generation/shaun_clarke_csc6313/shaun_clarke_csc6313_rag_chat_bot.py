@@ -292,6 +292,122 @@ class VectorStore:
     - initializes ChromaDB and the embeddingmodel.
     - Stores chunked text as vector embeddings.
     - Handles semantic similarity searches
+    - Basically handling crud operations
     """
-    def __init__(self):
-        pass
+    def __init__(self, collection_name: str = "rag_documents", persist_directory: str = "./chroma_db") -> None:
+        
+        # Initializing the sentence transformer embedding model
+        self.embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+        # Initializing the Chroma DB client
+        self.db_client: chromadb = chromadb.Client()
+        # Creating a collection(like a table in SQL but not a table) that will hold all the embeddings,chunked text and metadata
+        # Mental note for me, a collection in chromaDB is like a table in SQL so one row in chroma would have embeddings,chunked text and metadata
+        self.collection = self.db_client.get_or_create_collection(name=collection_name)
+
+        print(f"VectorStore initialized")
+        print(f"  - Model: all-MiniLM-L6-v2 (384 dimensions)")
+        print(f"  - Collection: {collection_name}")
+        print(f"  - Persist directory: {persist_directory}")
+
+    # This method adds document chunks to the DB
+    def add_documents(self, chunks: List[Dict[str, str]]) -> None:
+        """
+        Adds document chunks to the database
+        
+        :param chunks: List of chunk dictionaries fromt the DocumentLoader
+        :type chunks: List[Dict[str, str]]
+        """
+
+        print(f"\nAdding {len(chunks)} chunks to the vector database ...")
+        # Using a list comprehension to create a list of just the text content from the list of chunks dictionaries
+        texts: List = [chunk["content"] for chunk in chunks]
+        # Generating embeddings for all the text extracted from the chunks
+        print(f"  Generating embeddins ...")
+        embeddings: np.ndarray = self.embedding_model.encode(texts, show_progress_bar=True)
+        # Converting the embeddings, wich is an np array output to a list of lists, which is what chromadb is expecting
+        embeddings_list = embeddings.tolist() 
+        # creating unique IDs for each chunk by looping through the number of chunks and using it as a counter
+        chunk_ids: List = [f"chunk_{i}" for i in range(len(chunks))]
+        # Getting the metadata together for each chunk
+        chunk_metadatas: List = []
+        # Looping through the chunks to filter out the None fileds so the metadata is clean
+        for chunk in chunks:
+            # Creating a metadata dict with source(filename with path).
+            metadata: Dict = {
+                "source": chunk["source"]
+            }
+            # Only adding pages that don't have a none value. ChromaDB requires a string format so converting to string as well
+            if chunk.get("page") is not None:
+                metadata["page"]= str(chunk["page"])
+            # Only adding rows that don't have a none value. ChromaDB requires a string format so converting to string as well
+            if chunk.get("row") is not None:
+                metadata["row"] = str(chunk["row"])
+            
+            # Adding filtered metadata dict to chunk_metadatas list
+            chunk_metadatas.append(metadata)
+
+        # Adding the embeded chunks with their metadata, texts, and chunk_ids to the chromaDB collection
+        print(f" Hold on to your potatoes, slick we are about ot add processed data to chromaDB ...")
+        self.collection.add(
+            ids = chunk_ids,
+            embeddings = embeddings_list,
+            documents = texts,
+            metadatas = chunk_metadatas
+        )
+
+        print(f" Hot dawg we did it. we added {len(chunks)} to chromadDB")
+
+    
+    # This method is responsible for querying chromadb
+    def query_db(self, query: str, num_of_results: int = 3, ) -> list[Dict[str, str]]:
+        """
+        This method allows the user to query the DB using the user's question
+
+        :param query: The user's question
+        :type query: str
+        :param num_of_results: Numbe rof results to return, the default is 3.
+        :type num_of_results: int
+        :return: Returns the list of relevant chunk dicts that containt the text, source and metadata
+        :rtype: list[Dict[str, str]]
+        """
+
+        # Cnverting the query to embedding before it can be used to query the vector db
+        # Chroma db will expect a vector representation of the query
+        # After some research i found out chromadb also does the embedding.
+        # But that depends on how it is configured, so to be safe i am doing the embedding separately.
+        query_embedding = self.embedding_model.encode(query)
+        # Using the vector representation of the query above to query the vector DB
+        search_results = self.collection.query(
+            query_embeddings=[query_embedding],
+            n_results=num_of_results
+        )
+        
+        # The section below will be formating search results into list of dictionaries(personal opinion) because the raw output returned by chromadb is a wonky list of lists
+        # The list  contaits lists of: documents metadatas and similarity scores
+        # plus the dictionary matches the the shape that i have already been using for all the other data.
+        
+        # Empty list to hold dicts
+        results: list = []
+        # Extracting the list of document and metadata results form the search reults 
+        # If documents exists, return it, if not return an empty list so we dont crash.
+        documents: List = search_results["documents"][0] if search_results["documents"] else []
+        metadatas: List = search_results["metadatas"][0] if search_results["metadatas"] else []
+        # Combining the data insdide the extracted list of documents and metadatas into a dictionary so we can add them to the results list
+        # data inside the documents and metadatas arethe vector embeddings that was returned from the search along with the metadata.
+        for i in range(len(documents)):
+            result_dict: Dict = {
+                "content": documents[i],
+                "source": metadatas[i].get("source", "Unknown"),
+                "page": metadatas[i].get("page"),
+                "row": metadatas[i].get("row")
+            }
+
+            # Adding the result dict to the results list
+            results.append(result_dict)
+
+        return results
+
+
+
+
+
