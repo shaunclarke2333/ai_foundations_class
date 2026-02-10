@@ -5,6 +5,8 @@ Instructor: Margaret Mulhall
 Module: 4
 Assignment: The Knowledge-Grounded Assistant (RAG)
 
+I modified my RAG chatbot soit can read PDF, CSV, MD. TXT
+
 In this project, you will build a Retrieval-Augmented Generation (RAG) system using ChromaDB.
 You will create a chatbot (run out of the terminal,  Extra Challenge: Add a UI) that can answer questions about a specific,
 private dataset by retrieving relevant information before generating a response.
@@ -635,6 +637,7 @@ def main():
     print("CHAT STARTED")
     print("="*60)
     print("Ask questions about your documents!")
+    print("I am able to read PDFs, markdown, csv and .txt files.\n")
     print("Type 'quit', 'exit', or 'q' to end the conversation.\n")
 
     while True:
