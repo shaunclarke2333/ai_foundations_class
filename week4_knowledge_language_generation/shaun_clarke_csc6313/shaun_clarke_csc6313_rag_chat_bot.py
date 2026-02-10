@@ -14,13 +14,11 @@ This mirrors the industry standard for reducing hallucinations in AI models by "
 import os
 from typing import List, Dict, Optional, Callable
 import chromadb
-from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
-import requests
 import pandas as pd
 import pymupdf4llm
 import numpy as np
-from numpy import typing as npt
+from huggingface_hub import InferenceClient
 
 # This class loads documents to be chunked
 class DocumentLoader:
@@ -284,7 +282,7 @@ class DocumentLoader:
                 break
 
         return chunks
-    
+
 # This class manages Chroma DB and stores chunks as embeddings
 class VectorStore:
     """
@@ -294,15 +292,17 @@ class VectorStore:
     - Handles semantic similarity searches
     - Basically handling crud operations
     """
+
     def __init__(self, collection_name: str = "rag_documents", persist_directory: str = "./chroma_db") -> None:
-        
+
         # Initializing the sentence transformer embedding model
         self.embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
         # Initializing the Chroma DB client
-        self.db_client: chromadb = chromadb.Client()
+        self.db_client: chromadb = chromadb.PersistentClient(path=persist_directory)
         # Creating a collection(like a table in SQL but not a table) that will hold all the embeddings,chunked text and metadata
         # Mental note for me, a collection in chromaDB is like a table in SQL so one row in chroma would have embeddings,chunked text and metadata
-        self.collection = self.db_client.get_or_create_collection(name=collection_name)
+        self.collection = self.db_client.get_or_create_collection(
+            name=collection_name)
 
         print(f"VectorStore initialized")
         print(f"  - Model: all-MiniLM-L6-v2 (384 dimensions)")
@@ -313,19 +313,18 @@ class VectorStore:
     def add_documents(self, chunks: List[Dict[str, str]]) -> None:
         """
         Adds document chunks to the database
-        
+
         :param chunks: List of chunk dictionaries fromt the DocumentLoader
         :type chunks: List[Dict[str, str]]
         """
 
-        print(f"\nAdding {len(chunks)} chunks to the vector database ...")
         # Using a list comprehension to create a list of just the text content from the list of chunks dictionaries
         texts: List = [chunk["content"] for chunk in chunks]
         # Generating embeddings for all the text extracted from the chunks
-        print(f"  Generating embeddins ...")
-        embeddings: np.ndarray = self.embedding_model.encode(texts, show_progress_bar=True)
+        embeddings: np.ndarray = self.embedding_model.encode(
+            texts, show_progress_bar=False)
         # Converting the embeddings, wich is an np array output to a list of lists, which is what chromadb is expecting
-        embeddings_list = embeddings.tolist() 
+        embeddings_list = embeddings.tolist()
         # creating unique IDs for each chunk by looping through the number of chunks and using it as a counter
         chunk_ids: List = [f"chunk_{i}" for i in range(len(chunks))]
         # Getting the metadata together for each chunk
@@ -338,26 +337,22 @@ class VectorStore:
             }
             # Only adding pages that don't have a none value. ChromaDB requires a string format so converting to string as well
             if chunk.get("page") is not None:
-                metadata["page"]= str(chunk["page"])
+                metadata["page"] = str(chunk["page"])
             # Only adding rows that don't have a none value. ChromaDB requires a string format so converting to string as well
             if chunk.get("row") is not None:
                 metadata["row"] = str(chunk["row"])
-            
+
             # Adding filtered metadata dict to chunk_metadatas list
             chunk_metadatas.append(metadata)
 
         # Adding the embeded chunks with their metadata, texts, and chunk_ids to the chromaDB collection
-        print(f" Hold on to your potatoes, slick we are about ot add processed data to chromaDB ...")
         self.collection.add(
-            ids = chunk_ids,
-            embeddings = embeddings_list,
-            documents = texts,
-            metadatas = chunk_metadatas
+            ids=chunk_ids,
+            embeddings=embeddings_list,
+            documents=texts,
+            metadatas=chunk_metadatas
         )
 
-        print(f" Hot dawg we did it. we added {len(chunks)} to chromadDB")
-
-    
     # This method is responsible for querying chromadb
     def query_db(self, query: str, num_of_results: int = 3, ) -> list[Dict[str, str]]:
         """
@@ -381,17 +376,19 @@ class VectorStore:
             query_embeddings=[query_embedding],
             n_results=num_of_results
         )
-        
+
         # The section below will be formating search results into list of dictionaries(personal opinion) because the raw output returned by chromadb is a wonky list of lists
         # The list  contaits lists of: documents metadatas and similarity scores
         # plus the dictionary matches the the shape that i have already been using for all the other data.
-        
+
         # Empty list to hold dicts
         results: list = []
-        # Extracting the list of document and metadata results form the search reults 
+        # Extracting the list of document and metadata results form the search reults
         # If documents exists, return it, if not return an empty list so we dont crash.
-        documents: List = search_results["documents"][0] if search_results["documents"] else []
-        metadatas: List = search_results["metadatas"][0] if search_results["metadatas"] else []
+        documents: List = search_results["documents"][0] if search_results["documents"] else [
+        ]
+        metadatas: List = search_results["metadatas"][0] if search_results["metadatas"] else [
+        ]
         # Combining the data insdide the extracted list of documents and metadatas into a dictionary so we can add them to the results list
         # data inside the documents and metadatas arethe vector embeddings that was returned from the search along with the metadata.
         for i in range(len(documents)):
@@ -408,6 +405,258 @@ class VectorStore:
         return results
 
 
+# This RAGChatbot class is the orchestrator that ties it all together, document loading, vector search, and LLM generation
+class RAGChatbot:
+    """
+    This RAGChatbot class is the orchestrator that ties it all together, document loading, vector search, and LLM generation
+    """
+
+    def __init__(self, hf_api_key: str, model_name: str = "meta-llama/Llama-3.1-8B-Instruct"):
+        """
+        Docstring for __init__
+
+        :param hf_api_key: Hugging face api key for authentication.
+        :type hf_api_key: str
+        :param model_name: The LLM model that will use the retreived chunks and the users question to generate the final answer.
+        :type model_name: str
+        """
+        self.hf_api_key = hf_api_key
+        self.model_name = model_name
+        self.client = InferenceClient(token=hf_api_key)
+        self.document_loader = DocumentLoader(chunk_size=300, chunk_overlap=50)
+        self.vector_store = VectorStore()
+
+        print(f"\n{'='*60}")
+        print(f"SKYNET CHATBOT INITIALIZED")
+        print(f"{'='*60}")
+        print(f"model: T1000_{model_name}")
+        print(f"Ready to conquer earth, eh em!")
+        print(f"I mean ready to load the knowledge base!")
+
+    # This methods loads documents from the directory into chromadb vector database
+    def load_knowledge_base(self, directory: str) -> None:
+        """
+        his methods loads documents from the directory into chromadb vector database
+
+        :param directory: Directory path where documents will be loaded from
+        :type directory: str
+        """
+        # Loading documents from directory
+        documents = self.document_loader.load_documents(directory)
+        # Empty list to hold chunked documents and their metadata as a list of chunked dictionaries
+        all_chunks: List = []
+        # Looping through all documents and chunking texts
+        for document in documents:
+            document_chunks: List[Dict[str, str]] = self.document_loader.chunk_text(
+                text=document["content"],
+                source=document["source"],
+                page=document.get("page"),
+                row=document.get("row")
+            )
+            # Adding the chunked dictionary tot he all chunks list
+            all_chunks.extend(document_chunks)
+        # Adding chunks to the vector store
+        self.vector_store.add_documents(all_chunks)
+        print(f" SKYNET knowledge base is now online")
+
+    # This method query's the vector store(chromaDB) to retrieve relevant context chunks for a query.
+    def query_vector_db(self, query: str,  num_of_results: int = 3) -> str:
+        """
+        This method query's the vector store(chromaDB) to retrieve relevant context chunks for a query.
+
+        :param query: The user's question
+        :type query: str
+        :param num_of_results: Number of chunks to be returned tht associstes with the user's question
+        :type num_of_results: int
+        :return: A formatted context string that combines all the relevatn returned chunks
+        :rtype: str
+        """
+        # Using the user's question to query the vecor DB and specify the
+        # number of relevant vectors we want back that corresponds to the user's question
+        relevant_chunks: List = self.vector_store.query_db(
+            query, num_of_results)
+
+        # Empty List to hold formatted chunk strings aka context parts
+        # I say context parts because the chunks add context to the query when passed to the LLM together
+        context_parts: list = []
+        # Looping throuh the returned chunks to create a list of formatted chunk strings
+        for chunk in relevant_chunks:
+            # Creating teh source info header string
+            source_info: str = f"Source: {chunk['source']}"
+            # If the metadata page exists, add it to the header string
+            if chunk.get("page") is not None:
+                # Adding the page to the string
+                source_info += f", Page: {chunk['page']}"
+            # If the matadata for row exists, add it to the header string
+            if chunk.get("row") is not None:
+                source_info += f", Row: {chunk['row']}"
+
+            # Formatting chunk by adding the source_info as a header to the text rtruned in the chunk
+            # The source header helps the model understand which text came from which file.
+            # This allows the model to reason better
+            formatted_chunk = f"[{source_info}]\n{chunk['content']}\n"
+            # Adding the formatted chunk with the source header to the context_parts list
+            context_parts.append(formatted_chunk)
+
+        # joining all chunks together with a separator
+        # I am using a separator because without a separator things get messy real fast.
+        # chunk boundaries will disappear and sources are blurred
+        # This can make "reasoning" wonky, so the separator makes it useful context
+        context: str = "\n---\n".join(context_parts)
+
+        return context
+
+    # This method generates a response using the hugging face API with context retrieved from the vector DB
+    def generate_response(self, query: str, context: str) -> str:
+        """
+        This method generates a response using:
+        - The hugging face API with context retrieved from the vector DB
+        - and the user's query
+
+        :param query: The user's question
+        :type query: str
+        :param context: Context that was retrieved from the vectror DB
+        :type context: str
+        :return: The generated answer from the LLM
+        :rtype: str
+        """
+
+        # My attempt at Engineering the prompt with guard rails and context behind the scenes
+        prompt: str = f"""You are a helpful assistant. Answer the question using ONLY the provided context below.
+        IMPORTANT RULES:
+        - If the answer is not in the provided cntext, you must say "I dont know based on the provided information"
+        - Do not make up information or use knowledge outside the provided context.
+        - Be concise and direct, do not ramble on.
+        - Cite the source when possible
+
+        CONTEXT:
+        {context}
+
+        QUESTION: {query}
+
+        ANSWER:
+        """
+
+        try:
+            # Using the inference client to make a post request to the hugging face api
+            response = self.client.chat_completion(
+                 messages=[
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": query}
+                ],
+                model=self.model_name,
+                # This limits the response length
+                max_tokens=250,
+                # This controls how random vs deterministic the output will be, 0.7 is balanced
+                temperature=0.7,
+                # Nucleus sampling limits tokens to smallest probability mass, lower is safer and more factual.
+                # Basically, only consider the most likely words whose combined probability adds up to whatever number we set.
+                top_p=0.9,
+                # # This setting only returns the generated text and not the promt.
+                # return_full_text=False
+            )
+
+            # Getting the generated text from teh response
+            generated_text: str = response.choices[0].message.content
+
+            return generated_text
+
+        except Exception as e:
+            # Saving error message:
+            error_msg = str(e)
+
+            # Checking for th eissues i ran into during buildign and testing along with common issues referenced in the documentation
+            if "403" in error_msg or "not have access" in error_msg.lower():
+                return f"Error: You need to accept the Llama license at https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct. Details: {error_msg}"
+        
+            elif "503" in error_msg or "loading" in error_msg.lower():
+                return "Error: Model is loading. Please wait 30 seconds and try again."
+            
+            elif "429" in error_msg or "rate" in error_msg.lower():
+                return "Error: Rate limited. Please wait a minute and try again."
+            
+            else:
+                return f"Error generating response: {error_msg}"
+
+    # This method will be the main chat function that will run the full RAG workflow/pipeline
+    def chatbot(self, query: str) -> str:
+        """
+        This method will be the main chat function that will run the full RAG workflow/pipeline
+
+        :param query: The users questions
+        :type query: str
+        :return: The final answer generated by the model
+        :rtype: str
+        """
+        # Using the user's question(query) to retrieve additional context from vector DB
+        context: str = self.query_vector_db(query)
+        answer: str = self.generate_response(query, context)
+
+        return answer
 
 
+# This main function runs the RAG chatbot
+def main():
 
+    print("\n" + "="*60)
+    print("T1000 CHATBOT - Knowledge Grounded Assistant")
+    print("="*60)
+    print("\nWelcome! This chatbot answers questions using your documents.")
+    print("It also promises not travel back in time to find Sarah Connor.\n")
+
+    # Getting hugging face api key from user input and removing white space
+    hf_api_key: str = input(
+        "Enter your Hugging Face API key, or else: ").strip()
+    # If the user did not enter an api key let hte user know it is required
+    if not hf_api_key:
+        print(f"Your API key is required")
+        return
+
+    # Initializing the rag chatbot
+    chatbot = RAGChatbot(hf_api_key)
+
+    # # Getting the documents directory from the user, but adding default value just in case
+    # data_dir: str = input(
+    #     "Enter your documents directory. [Press enter to use './documents_project4/']").strip()
+    # # If the user did not enter a directory, use the default
+    # if not data_dir:
+    data_dir = "./documents_project4/"
+
+    # Chciking if the directory exists
+    if not os.path.exists(data_dir):
+        # if the directory doesnt exist, let the user know
+        print(f"Directory '{data_dir}' not found!")
+        return
+    # Creating vector embeddings for the documents and loading them into the vector db
+    chatbot.load_knowledge_base(data_dir)
+
+    # Creating an interactive loop
+    print("\n" + "="*60)
+    print("CHAT STARTED")
+    print("="*60)
+    print("Ask questions about your documents!")
+    print("Type 'quit', 'exit', or 'q' to end the conversation.\n")
+
+    while True:
+        # Getting the  user's question
+        user_question = input("\nYou: ").strip()
+
+        # Making sure the user did not enter an exit command
+        if user_question.lower() in ['quit', 'exit', 'q']:
+            print("\nThanks for chatting! Oh, tell John Connot i'll see him around\n")
+            break
+
+        # If the user's input is empty, restart the loop and ask again
+        if not user_question:
+            print("Please ask T1000 a question.")
+            continue
+
+        # Getting response from the chat bot
+        answer = chatbot.chatbot(user_question)
+
+        # outputting the chat bot's response
+        print(f"\nT1000: {answer}")
+
+
+if __name__ == "__main__":
+    main()

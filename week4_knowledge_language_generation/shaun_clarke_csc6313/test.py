@@ -12,7 +12,7 @@ if __name__ == "__main__":
     loader = DocumentLoader(chunk_size=300, chunk_overlap=50)
     docs = loader.load_documents("./documents_project4/")
     print(f"\n{'='*60}")
-    print(f"PHASE 1 TEST: Document Loading")
+    print(f"TEST: Document Loading")
     print(f"{'='*60}")
     print(f"Loaded {len(docs)} document segments")
     
@@ -29,7 +29,7 @@ if __name__ == "__main__":
     
     #Test: Chunking documents
     print(f"\n{'='*60}")
-    print(f"PHASE 2 TEST: Text Chunking")
+    print(f"TEST: Text Chunking")
     print(f"{'='*60}")
     
     all_chunks = []
