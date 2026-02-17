@@ -1,4 +1,6 @@
-"""
+In this project, you will develop a supervised machine learning pipeline to predict patient health outcomes using Scikit-Learn.
+You will transition from "Classical ML" theory to a functional Python implementation that handles data generation, cleaning, model training, and real-time inference.
+
 Core Requirements
 1. Data Generation & Persistence
 Automated Dataset: Your script must programmatically generate a synthetic dataset and save it as patient_health_data.csv in your Current Working Directory (CWD).
@@ -33,4 +35,3 @@ Predicted Health Risk Score (0-100 scale).
 Probability of Risk (Percentage via Logistic Regression).
 
 Final Diagnosis (Either "HEALTHY" or "AT RISK" based on a 60-point threshold).
-"""
