@@ -108,8 +108,8 @@ class PatientDataGenerator:
         # The idea here is, we already have a formula for health risk score with weights. lets create an array of boolean results for scores
         # That are greater or less than 60 then convert them to binary, becasue that is what the logisticregression model expects.
         diagnosis: np.ndarray = (health_risk_score > 60).astype(int)
-        print(diagnosis)
-        print(len(diagnosis))
+        # print(diagnosis)
+        # print(len(diagnosis))
 
         # Using the generated features and target to create a dataframe
         generated_data: pd.DataFrame = pd.DataFrame({
@@ -145,6 +145,7 @@ class ClassifierShowdown:
         self.tree_pred = None
         self.forest_pred = None
         self.knn_pred = None
+        # Dict to hold accuracy scores
         self.accuracies = {}
 
     # This method splits the data and transforms it with StandardScaler
@@ -187,17 +188,36 @@ class ClassifierShowdown:
         """
         This method generates predictions and calculates accuracy scores
         """
-        self.tree_pred = self.tree_model.predict(self.X_test_scaled)
-        self.forest_pred = self.forest_model.predict(self.X_test_scaled)
-        self.knn_pred = self.knn_model.predict(self.X_test_scaled)
+        self.tree_pred: DecisionTreeClassifier = self.tree_model.predict(self.X_test_scaled)
+        self.forest_pred: RandomForestClassifier = self.forest_model.predict(self.X_test_scaled)
+        self.knn_pred: KNeighborsClassifier = self.knn_model.predict(self.X_test_scaled)
 
         self.accuracies["Decision Tree"]=accuracy_score(self.Y_test, self.tree_pred)
         self.accuracies["Random Forest"]=accuracy_score(self.Y_test, self.forest_pred)
         self.accuracies["KNN"]=accuracy_score(self.Y_test, self.knn_pred)
 
-        print(f"tree: {self.accuracies['Decision Tree']}")
-        print(f"forest: {self.accuracies['Random Forest']}")
-        print(f"knn: {self.accuracies['KNN']}")
+        # print(f"tree: {self.accuracies['Decision Tree']}")
+        # print(f"forest: {self.accuracies['Random Forest']}")
+        # print(f"knn: {self.accuracies['KNN']}")
+
+        self._print_accuracy_table()
+
+    # This private method helps to format the accuracy scores output as a table
+    def _print_accuracy_table(self):
+        """
+        This private method helps to format the accuracy scores output as a table
+        """
+
+        print("\n" + "="*50)
+        print("Model Accuracy Comparison")
+        print("="*50)
+        print("Decision Tree: {:.2%}".format(self.accuracies['Decision Tree'] * 100))
+        print("="*25)
+        print("Random Forest: {:.2%}".format(self.accuracies['Random Forest'] * 100))
+        print("="*25)
+        print("K-Nearest neighbors: {:.2%}".format(self.accuracies['KNN'] * 100))
+        print("="*25)
+
 
 
 
