@@ -145,6 +145,9 @@ class ClassifierShowdown:
         self.tree_pred = None
         self.forest_pred = None
         self.knn_pred = None
+        self.patient_tree_pred = None
+        self.patient_forest_pred = None
+        self.patient_knn_pred = None
         # Dict to hold accuracy scores
         self.accuracies = {}
 
@@ -196,10 +199,6 @@ class ClassifierShowdown:
         self.accuracies["Random Forest"]=accuracy_score(self.Y_test, self.forest_pred)
         self.accuracies["KNN"]=accuracy_score(self.Y_test, self.knn_pred)
 
-        # print(f"tree: {self.accuracies['Decision Tree']}")
-        # print(f"forest: {self.accuracies['Random Forest']}")
-        # print(f"knn: {self.accuracies['KNN']}")
-
         self._print_accuracy_table()
 
     # This private method helps to format the accuracy scores output as a table
@@ -211,14 +210,125 @@ class ClassifierShowdown:
         print("\n" + "="*50)
         print("Model Accuracy Comparison")
         print("="*50)
-        print("Decision Tree: {:.2%}".format(self.accuracies['Decision Tree'] * 100))
-        print("="*25)
-        print("Random Forest: {:.2%}".format(self.accuracies['Random Forest'] * 100))
-        print("="*25)
-        print("K-Nearest neighbors: {:.2%}".format(self.accuracies['KNN'] * 100))
-        print("="*25)
+
+        # Iterating over accuracy scores to prin table
+        for key, value in self.accuracies.items():
+            print(f"{key:<15} {value:.4f} ({value*100:.2f}%)")
+        print("="*50 + "\n")
+
+    # This private method helps to format and display the voting results
+    def _print_voting_results_table(self):
+        """
+        This private method helps to format and display the voting results
+        """
+
+        print("\n" + "="*50)
+        print("Model Voting Results")
+        print("="*50)
+
+        risk_count = 0
+        healthy_count = 0
+
+        predictions = {
+            # sklearn always returns an array even if its for 1 patient, so we use [0] to get the one element for the one patient we prdicted.
+            "Decision Tree": self.patient_tree_pred[0],
+            "Random Forest": self.patient_forest_pred[0],
+            "KNN": self.patient_knn_pred[0]
+        }
+
+        for key, pred in predictions.items():
+            if pred == 1:
+                health = "At Risk"
+                risk_count += 1
+            else:
+                health = "Healthy"
+                healthy_count += 1
+
+            print(f"{key:<15} {health}")
+        
+        print("="*50)
+        print(f"Votes > At Risk: {risk_count}, Healthy: {healthy_count}")
+
+        if risk_count > healthy_count:
+            print("FINAL DIAGNOSIS: AT RISK")
+        else:
+            print("FINAL DIAGNOSIS: HEALTHY")
+
+    
 
 
+
+
+
+
+    # This function runs the inference engine. Takes user input and infer whether the patient is at risk or not.
+    def run_inference(self):
+
+        print("\n" + "=" * 60)
+        print(f"DIAGNOSTIC PREDICTION ENGINE - PATIENT ASSESSMENT")
+        print(f"The Classifier Showdown (Non-Linear Methods)")
+        print(f"=" * 60)
+        print("Enter patient vitals to receive a health risk assessment.")
+        print("Type 'quit' at any prompt to exit.\n")
+
+        # This while loop will run until it the user exits the  program
+        while True:
+            """
+            This loop will run until the user types "no" or "quit"
+            """
+            print("-" * 60)
+
+            try:
+                # Colleting age input
+                age_input: str = input("Enter patient age (years): ")
+                if age_input.lower() == "quit":
+                    print("Exiting diagnostic engine. Peace Out!")
+                    break
+                # Inputs are strings so we need to covert it to a float
+                age: float = float(age_input)
+            except ValueError:
+                print(f"Invalid input, please enter a number")
+                continue
+
+            try:
+                # Colleting bmi input
+                bmi_input: str = input("Enter patient bmi: ")
+                if bmi_input.lower() == "quit":
+                    print("Exiting diagnostic engine. Peace Out!")
+                    break
+                # Inputs are strings so we need to covert it to a float
+                bmi: float = float(bmi_input)
+            except ValueError:
+                print(f"Invalid input, please enter a number")
+                continue
+
+            try:
+                # Colleting blood sugar input
+                sugar_input: str = input("Enter patient blood sugar level: ")
+                if sugar_input.lower() == "quit":
+                    print("Exiting diagnostic engine. Peace Out!")
+                    break
+                # Inputs are strings so we need to covert it to a float
+                blood_sugar: float = float(sugar_input)
+            except ValueError:
+                print(f"Invalid input, please enter a number")
+                continue
+
+            # Creating anumpy array with all user inputs, because the sklearn models expect a 2d input, rows columns.
+            patient_data: np.ndarray = np.array([[age, bmi, blood_sugar]])
+
+            # Standardizing data with Z-score scaling
+            patient_scaled: np.ndarray = self.scaler.transform(patient_data) # Only transforming because we do not want to train the model on this data.
+
+            self.patient_tree_pred: DecisionTreeClassifier = self.tree_model.predict(patient_scaled)
+            self.patient_forest_pred: RandomForestClassifier = self.forest_model.predict(patient_scaled)
+            self.patient_knn_pred: KNeighborsClassifier = self.knn_model.predict(patient_scaled)
+
+            self._print_voting_results_table()
+
+            another = input("\nAssess another patient? (yes/no): ")
+            if another.lower() in ("no", "quit", "n"):
+                break
 
 
 
