@@ -104,7 +104,7 @@ class PatientDataGenerator:
 
         # Creating a health risk score based on the features. Thanks to numpy arrays perfomring element-wise operations, everything in the generated feature arrays will be multiplied by the weights
         health_risk_score: int = ((age * 0.5) + ((bmi - 25) * 2) + ((blood_sugar_level - 90) * 0.3) + np.random.normal(0, 10, self.n_samples))
-        # To generate teh diagnosis, we create an array of booleans thare greater or less than 60 and convertt the booleans to binary, 1,0
+        # To generate teh diagnosis, we create an array of booleans that are greater or less than 60 and convertt the booleans to binary, 1,0
         # The idea here is, we already have a formula for health risk score with weights. lets create an array of boolean results for scores
         # That are greater or less than 60 then convert them to binary, becasue that is what the logisticregression model expects.
         diagnosis: np.ndarray = (health_risk_score > 60).astype(int)
@@ -255,10 +255,34 @@ class ClassifierShowdown:
             print("FINAL DIAGNOSIS: HEALTHY")
 
     
+    # This method creates a pop up visualization of the decision tree's feature importance and tree structure
+    def visualize_decision_tree(self, dataframe: pd.DataFrame):
+        """
+        Docstring for visualize_decision_tree
+        
+        :param self: Description
+        """
+        # Creating a figure with two subplots. 1 row 2 columns
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+        # getting feature names and importance and adding them to the chart
+        feature_names: List = dataframe[["age", "bmi", "blood_sugar"]].copy().columns.to_list()# Getting featuer names from df as a list
+        # Getting the feature importance values. The decision tree learned whihc features matter most after the model most after training
+        importance_values = self.tree_model.feature_importances_
+        # print(feature_names)
+        # print(importance_values)
+        # Plotting a horizontal bar chart hence the "h" at the end of bar
+        ax1.barh(feature_names, importance_values)
+        # Adding title to the chart
+        ax1.set_title("Feature Importance")
 
+        
+        # Plotting the tree structure using sklearns plot_tree
+        plot_tree(self.tree_model, feature_names=feature_names, class_names=["Healthy", "At Risk"], filled=True, ax=ax2)
 
-
-
+        # Using tight layout to automatically adjust spacing between the plots so everything fits nice and looks nice :)
+        plt.tight_layout()
+        # Displaying the plot. it will automatically pause until the user closes the window
+        plt.show()
 
 
     # This function runs the inference engine. Takes user input and infer whether the patient is at risk or not.
@@ -326,9 +350,34 @@ class ClassifierShowdown:
 
             self._print_voting_results_table()
 
-            another = input("\nAssess another patient? (yes/no): ")
+            another: str = input("\nAssess another patient? (yes/no): ")
             if another.lower() in ("no", "quit", "n"):
                 break
 
 
 
+# Main function that will execute the program
+def main():
+    
+    # Initializing the PatientDataGenerator object
+    data_generator: PatientDataGenerator = PatientDataGenerator()
+    # Generating patient data and saving it to a csv
+    data: pd.DataFrame = data_generator.generate_patient_data()
+    print(f"\nDataset saved to: classifier_patient_data.csv")
+    # Initializing the ClassifierShowdown object with the dataframe that was generated 
+    get_classifier: ClassifierShowdown = ClassifierShowdown(data)
+    # Splitting the data into X(inputs) and Y(targets(diganosis)) and transforming it with standard scaler
+    get_classifier.preprocess_data()
+    # training all three classification models
+    get_classifier.train_models()
+    # Generating predictions and calculating the accuracy scores of the models
+    get_classifier.evaluate_models()
+    # Visualizing the decision tree's feature importance and tree structure
+    get_classifier.visualize_decision_tree(data)
+    # Promting the user for input and then infer whether the patient is at risk or not.
+    # Also print the voting results.
+    get_classifier.run_inference()
+
+
+if __name__ == "__main__":
+    main()
