@@ -21,14 +21,17 @@ class NeuralThermostat:
 
         # Initializing weights and bias with random values
 
+        # The seed number specifies where to start generating random numbers from. This ensures the same numbers are generated all the time every time
         np.random.seed(42)
 
+        # Initializing random weights to break the symmetry, meaning; no two weights will have the same value that will result in identical behavior during forward and backward passes
         self.w1 = np.random.randn()
-
         self.w2 = np.random.randn()
-
+        # Initializing a random number for bias as well. This allows the neuron to still activate(nudging its decision boundary up or down) even if all inputs are zero.
+        # If all inputs are 0, the weighted sum(input * weights) would be 0.
         self.bias = np.random.randn()
-
+        # Setting the learning rate 0.1. The learning rate determines the rate at whcich the network learns. meaning how big is the amount by whihc each weight is updated after a mistake. 
+        # Finding a sweet spot is good, a very low rate might be stable but makes training slow. Too high makes training faster, but also risks instability, becasue the icreases are to big and misses the optimal setting for the weights.
         self.learning_rate = 0.1
 
       
