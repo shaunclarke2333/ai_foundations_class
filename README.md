@@ -1,41 +1,93 @@
-# ai_foundations_class
-## Week 3
-*Project #3: The Smart Navigator (A vs. BFS)**
-Objective:
+# CSC6313 AI Foundations
 
-In this project, you will implement two fundamental AI search algorithms: Breadth-First Search (BFS) and A* Search. You will test these algorithms across four different maze environments to observe the efficiency of Informed Search (using a heuristic) compared to Uninformed Search.
+**Student:** Shaun Clarke  
+**Instructor:** Margaret Mulhall  
+**Institution:** Merrimack College
 
-Requirements:
+---
 
-BFS Implementation: Use a deque (Double-Ended Queue) to implement a First-In-First-Out (FIFO) frontier.
+## About This Repository
 
-*A Implementation:** Use heapq (Priority Queue) to always expand the node with the lowest total estimated cost $f(n) = g(n) + h(n)$.
+This repository contains all weekly projects completed for CSC6313 AI Foundations. Each project builds on the previous one, progressing from hand-written rule systems through statistical models, search algorithms, retrieval-augmented generation, supervised learning pipelines, non-linear classifiers, and finally a neural network built from scratch.
 
-Heuristic Function: Implement the Manhattan Distance formula to guide your A* search.
+Every project folder includes the full implementation and a detailed README covering how the code works, the design decisions behind it, and instructions for running it locally.
 
-The Tie-Breaker: To achieve optimal efficiency in dense grids, your A* priority should be calculated as: priority = (g + h) + (h * 0.001).
+---
 
-Performance Goal: Your code must correctly return the number of nodes visited for each maze. For "Informed" search to be successful, your A* should visit significantly fewer nodes than BFS in most scenarios.
+## Projects
 
-## Week4
-Project #4: The Knowledge-Grounded Assistant (RAG)
+### Week 01 [The Symbolic Spam Classifier](https://github.com/shaunclarke2333/ai_foundations_class/tree/main/week1_ai_landscape)
+**Topics:** Rule-based AI, symbolic reasoning  
+A hand-crafted spam classifier built on 4 explicit rules no machine learning, no training data. Demonstrates how AI worked before statistical methods: hard-coded logic that humans can read, audit, and debug directly.
 
-In this project, you will build a Retrieval-Augmented Generation (RAG) system using ChromaDB. You will create a chatbot (run out of the terminal,  Extra Challenge: Add a UI) that can answer questions about a specific, private dataset by retrieving relevant information before generating a response. This mirrors the industry standard for reducing hallucinations in AI models by "grounding" them in facts.
+---
 
+### Week 02 [The Statistical Spam Classifier](https://github.com/shaunclarke2333/ai_foundations_class/tree/main/week2_symbolic_ai)
+**Topics:** Naive Bayes, probabilistic classification, scikit-learn  
+A Naive Bayes classifier trained on 30 labeled email examples. The first project where the model *learns* from data rather than following hand-written rules. Demonstrates how statistical models differ fundamentally from symbolic ones.
 
-Core Requirements
-1. Dataset & Directory Setup
-    - Required Directory: You must create a folder named documents_project4 in your Current Working Directory (CWD).
-    - Embeddings Storage: All vector database files and embeddings must be stored locally in your CWD.
-    - Testing Protocol: I will be testing your project using my own .txt files. Ensure your ingestion script is robust enough to process any text files placed in the documents_project4 folder.
-    - Added Challenge: For those looking for an extra hurdle, try making your system robust enough to handle PDFs, Markdown files or other file times in addition to txt. 
-2. Implementation of Retrieval (The "R")
-    - Vector Database: Use ChromaDB to store your data locally.
-    - Embeddings: Use the sentence-transformers library (model: all-MiniLM-L6-v2) to vectorize your text chunks.
-    - Retriever: Implement a module that converts a user query to a vector and fetches the top 2-3 most relevant "chunks" from your database.
-3. Implementation of Generation (The "G")
-    - Augmented Input: Create a prompt template that merges the Retrieved Context + User Question.
-    - Free Inference: Use the Hugging Face Hub (free tier) to send your augmented prompt to an open-source model (e.g., meta-llama/Llama-3.1-8B-Instruct).
-    - DO NOT SHARE YOUR KEY!
-    - System should ask the user for their HuggingFace key. Once they enter it, it should ask them what question they want answered.
-Prompt Engineering: Apply strict "Guardrails" in your system prompt: “Answer the question using ONLY the provided context. If the answer is not in the context, say you do not know.”
+---
+
+### Week 03 [BFS vs A* Pathfinding](https://github.com/shaunclarke2333/ai_foundations_class/tree/main/week3_search_problem_solving)
+**Topics:** Search algorithms, heuristics, graph traversal  
+Side-by-side comparison of Breadth-First Search and A* across 4 maze configurations. BFS explores blindly in all directions; A* uses Manhattan distance as a heuristic to prioritize paths heading toward the goal. A counter tie-breaker ensures consistent, reproducible results.
+
+---
+
+### Week 04 [The RAG Chatbot](https://github.com/shaunclarke2333/ai_foundations_class/tree/main/week4_knowledge_language_generation)
+**Topics:** Retrieval-Augmented Generation, vector databases, semantic search  
+A question-answering chatbot backed by ChromaDB and sentence-transformers. User queries are converted to embeddings, matched against 6 stored documents by cosine similarity, and the most relevant passage is returned as the answer no LLM API required.
+
+---
+
+### Week 05 [The Diagnostic Prediction Engine](https://github.com/shaunclarke2333/ai_foundations_class/tree/main/week5_machine_learning_basics)
+**Topics:** Supervised ML pipeline, preprocessing, bias-variance tradeoff, logistic regression  
+A full end-to-end supervised learning pipeline predicting patient health outcomes from synthetic data. Covers synthetic data generation with intentional missing values, median imputation, Z-score standardization, and three regression models (underfit / overfit / optimal) to demonstrate the bias-variance tradeoff. Closes with an interactive terminal inference engine.
+
+---
+
+### Week 06 [The Classifier Showdown](https://github.com/shaunclarke2333/ai_foundations_class/tree/main/week6_machine_learning_methods)
+**Topics:** Decision Trees, Random Forests, k-Nearest Neighbors, ensemble methods  
+Three non-linear classifiers trained on the same patient dataset and compared head-to-head. Includes a Matplotlib popup showing the Decision Tree's learned if-then rules and feature importance scores. An interactive inference engine collects votes from all three models and uses majority vote for the final diagnosis.
+
+---
+
+### Week 07 — [The Neural Thermostat Agent](https://github.com/shaunclarke2333/ai_foundations_class/tree/main/week7_neural_networks)
+**Topics:** Single-neuron neural network, sigmoid activation, gradient descent  
+A Perceptron implemented entirely from scratch using only NumPy no PyTorch, no TensorFlow. Implements the sigmoid activation function, a manual forward pass, and weight updates via gradient descent by hand. The agent learns to control a smart thermostat based on temperature and room occupancy, and a loss curve confirms convergence.
+
+---
+
+## Progression at a Glance
+
+```
+Week 01  →  Hard-coded rules          (No learning)
+Week 02  →  Probabilistic model       (Learns from labeled examples)
+Week 03  →  Search algorithms         (Intelligent traversal with heuristics)
+Week 04  →  Semantic retrieval        (Embedding-based knowledge lookup)
+Week 05  →  Supervised ML pipeline    (Regression, preprocessing, model comparison)
+Week 06  →  Non-linear classifiers    (Trees, forests, distance-based voting)
+Week 07  →  Neural network from scratch (Weights, activation, gradient descent)
+```
+
+---
+
+## Running Any Project
+
+Each project is self-contained. Navigate into the folder and follow the instructions in its README.
+
+```bash
+cd week01
+python shaun_clarke_csc6313_week01.py
+```
+
+### Shared dependencies across most projects
+```bash
+pip install numpy pandas matplotlib scikit-learn
+```
+
+### Additional dependencies for specific weeks
+```bash
+# Week 04 — RAG Chatbot
+pip install chromadb sentence-transformers
+```
