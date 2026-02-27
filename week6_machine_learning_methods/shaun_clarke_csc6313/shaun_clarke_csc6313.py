@@ -103,7 +103,7 @@ class PatientDataGenerator:
         # print(blood_sugar_level)
 
         # Creating a health risk score based on the features. Thanks to numpy arrays perfomring element-wise operations, everything in the generated feature arrays will be multiplied by the weights
-        health_risk_score: int = ((age * 0.5) + ((bmi - 25) * 2) + ((blood_sugar_level - 90) * 0.3) + np.random.normal(0, 10, self.n_samples))
+        health_risk_score: np.ndarray = ((age * 0.5) + ((bmi - 25) * 2) + ((blood_sugar_level - 90) * 0.3) + np.random.normal(0, 10, self.n_samples))
         # To generate teh diagnosis, we create an array of booleans that are greater or less than 60 and convertt the booleans to binary, 1,0
         # The idea here is, we already have a formula for health risk score with weights. lets create an array of boolean results for scores
         # That are greater or less than 60 then convert them to binary, becasue that is what the logisticregression model expects.
@@ -169,7 +169,7 @@ class ClassifierShowdown:
         # Initializing StandardScaler
         self.scaler: StandardScaler = StandardScaler()
         # fitting and transforming the training data with StandardScaler
-        self.X_train_scaled: np.nadarray = self.scaler.fit_transform(self.X_train)
+        self.X_train_scaled: np.ndarray = self.scaler.fit_transform(self.X_train)
         # Transform test data with StandardScaler. We are only transforming test and not fitting becasue we cannot expose the test data to the model.
         self.X_test_scaled: np.ndarray = self.scaler.transform(self.X_test)
 
@@ -381,3 +381,54 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+"""
+CLASSIFIER COMPARISON INSIGHTS:
+
+Decision Tree (max_depth=3):
+- Most interpretable, it can visualize exact rules
+- Has the fastest prediction time
+- It may underfit on complex patterns
+- what DecisionTreeClassifier.fit() does behind the scenes:
+    - It calculates the gini impurity for every possible split. basically, if i split here, how pure/clean does each group become
+    - it then builds the tree structure; nodes, branches, leaves.
+    - Then it stores the split thresholds and decison rules. The splits that reduce impurity the most is what is stored as a decision rule in the tree
+    - So it learns that (The split thresholds that reduce impurity the most) If age > 60 AND bmi > 30 → At Risk
+
+Random Forest:
+- The most accurate (Its like the Jedi council)
+- It handles non linear relationships really well
+- Its less interpretable than a single tree
+- What RandomForestClassifier.fit() does behind the scenes
+    - It makes 100 random datasets from X_train by randomly sampling rows, this is called boostrapping.
+      This way each tree sees a slightly different version of the dataset
+    - It then builds 100 decesion trees, 1 from each boostrapped dataset.
+      To prevent trees from becoming identical at each split, it only selects a subset of the features, not all of them.
+      So every tree is somewhat uniqe because slightly different feature splits were used to train it on a little different data.
+    - After training, the forest now contains 100 trees which get stored in memory, each tree having its own decision rules.
+    - When its time to predict, each tree makes it's own prediction, 0 or 1 then the forest takes a majority vote.
+      if 70 tree say "Healthy" and 30 day "At Risk", the final prediction is "Healthy"
+
+k-Nearest Neighbors (k=5):
+- K-NN has no training phase and is often called the lazy learner, because it does not build rules, learn weights or optimize anything.
+  Instead it just stores the training data in memory.
+- It then adapts to local patterns. When making a new prediction, it calculates the disatance to all training points and finds the five closest points(if k=5)
+  it then looks at the labels for the 5 closest points and and tkaes a majority vote. if the points are [1, 1, 1, 0, 0] then the prediction is 1, which is "At Risk"
+- K-NN requires scaling because it uses distance formulas. If one feature has larger numbers(blood sugar 200) and another has a smaller feature(bmi 25), the large feature will domante the in the distance formula.
+- It performs much slower on large datasets, because at prediction time it has to calculate the distance between what we are trying to predict and every feature it memorized during training .
+- What KNeighborsClassifier.fit() does behind the scenes
+    - It does nothing special.
+    - It doesn't learn any patterns ahead of time.
+    - It memorizes new patients and compares new patients to nearby patients.
+
+Random Forest has better accuracy and stability
+Decision Trees are easier to interprit and explain, but not the most accurate because it only uses a single tree.
+K-NN is better for edge cases aka, weird, random or never before seen stuff. Whether it be a weird combination of features or something not common in the dataset.
+It can sucessfully do this because it does not make predictions based of any learned rules or pattern.
+It basically chekcs:
+    Who are the closest neighhbors to the one im trying to predict. Basically are there any similar rare neighbors neraby.
+    It simply adapts to the local neighborhood, it doesnt care about whats happening far away in the dataset.
+
+
+"""
