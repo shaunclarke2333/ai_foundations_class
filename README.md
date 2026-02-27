@@ -1,11 +1,5 @@
 # CSC6313 AI Foundations
 
-**Student:** Shaun Clarke  
-**Instructor:** Margaret Mulhall  
-**Institution:** Merrimack College
-
----
-
 ## About This Repository
 
 This repository contains all weekly projects completed for CSC6313 AI Foundations. Each project builds on the previous one, progressing from hand-written rule systems through statistical models, search algorithms, retrieval-augmented generation, supervised learning pipelines, non-linear classifiers, and finally a neural network built from scratch.
